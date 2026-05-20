@@ -7,7 +7,7 @@ requires-python = ">=3.12"
 license = { text = "MIT" }
 authors = [{ name = "Kristen Martino" }]
 dependencies = [
-    "mcp[cli]>=1.2.0",
+    "mcp[cli]>=1.27.1",
     "asyncpg>=0.30",
     "voyageai>=0.3",
     "anthropic>=0.40",
