@@ -137,7 +137,7 @@ async def section_1_totals(conn) -> None:
     if raw:
         rate = 100.0 * (row["total_linked"] or 0) / raw
         print(f"  link_rate_pct (people+orgs)......... {rate:.1f}")
-        print(f"  (locations excluded — currently no dossier coverage for places)")
+        print("  (locations excluded — currently no dossier coverage for places)")
 
 
 async def section_2_by_category(conn) -> None:
