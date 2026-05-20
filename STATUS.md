@@ -89,6 +89,6 @@ Nothing engineering-blocked. v0.5 work is gated on **demand signal**, not techni
 - **STATUS.md** (this file) — top-of-mind: active focus, open questions, **Next 3** committed work, blockers, recent decisions
 - **BACKLOG.md** — everything deferred, in prose: v0.5 items, stretch items, bugs/quirks to revisit. Items here can be promoted to GitHub issues when work is committed.
 - **GitHub issues** — formally tracked work. The Next 3 in STATUS.md all have issues. Other work-worth-tracking that isn't yet committed also lives here. See [`gh issue list`](https://github.com/kristenmartino/sift-mcp/issues).
-- **GitHub Project** ([Kristen Portfolio](https://github.com/users/kristenmartino/projects/3)) — board view of issues across repos.
+- **GitHub Project** ([Sift](https://github.com/users/kristenmartino/projects/3)) — board view spanning the 3 Sift repos (sift, sift-api, sift-mcp). Other product families (tenancy, valuate, regrag, portfolio-v2) get their own Projects as the template is replicated.
 
 If you can't find something, search in this order: `gh issue list` → `cat BACKLOG.md` → `git log --oneline` → ask. The pre-session ritual in [CLAUDE.md](CLAUDE.md) hits all four.
