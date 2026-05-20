@@ -23,6 +23,18 @@ Items deferred from v0.1. Not blocking the demo; track here so they don't get lo
 - **Wire / paywall reality check in response.** Note in `web_status` or a sibling field when outlets in `web_outlets_searched` consistently fail to return (wire services often underperform `site:` queries; paywalled outlets often aren't in Claude's web_search index). Surface the pattern so callers know it's a tool limitation, not a coverage gap.
 - **Link web-found claims back to dossiers when possible.** Web claims today have no `article_ids`. If a web claim references a politician / org / bill that exists in Sift's dossier graph, populate a new `dossier_links` field so callers can chain `compare_outlets → get_dossier`.
 
+## Considered and rejected (architectural)
+
+Captured here so we don't re-litigate. If circumstances change, the reasoning is easy to revisit.
+
+- **Claim deduplication across DB and web via a 3rd LLM call.** Rejected: adds latency and ~$0.003 per call for marginal value. The `source: "index" | "web"` tag already lets the reader filter; near-duplicate claims across paths are tolerable.
+- **Streaming partial results via MCP progress notifications.** Rejected: MCP Inspector renders them badly; Claude Desktop ignores them. Return-once-with-full-data is the right pattern until clients catch up.
+- **Two-pass design with a separate `enrich_comparison(comparison_id)` tool.** Rejected: MCP doesn't carry state nicely between calls; would need a comparison_id concept and a cache. Scope creep relative to value.
+- **Topic-age trigger for fallback** (fire web only if topic is "hot/fresh"). Rejected: "hot" is hard to detect without metadata; brittle heuristic.
+- **Confidence-based trigger for fallback** (run Haiku first, fire web if claims confidence is low). Rejected: requires two LLM calls regardless, and Haiku is a noisy judge of its own confidence.
+- **Always-parallel web call** (every `compare_outlets` fires both DB and web). Rejected: wasteful when DB has good coverage; smart-conditional (`web_fallback="auto"`) gives the same predictability without the cost. `web_fallback="always"` is the per-call escape hatch.
+- **Route the web fallback through a new sift-api endpoint** (refactor the DB-then-web fallback that lives in `sift/app/api/news/topic/route.ts` into a new `POST /v1/articles/search` endpoint on sift-api, then have `compare_outlets` call it). The "right" architectural answer but scope creep for v0.1 — touches sift-api, requires new Pydantic models, ideally migrates the frontend's topic search too. Direct web_search in MCP (current implementation) ships in ~30 min vs ~3 hrs. **Revisit when strategic question #2 in STATUS.md (sift-mcp ↔ sift-api merger) resolves.**
+
 ## Bugs / quirks to revisit
 
 - **Single-article comparisons substitute the topic.** When `articles_compared == 1` and the article isn't precisely on-topic (top score in the 0.40–0.50 band), Haiku tends to extract claims about whatever the article *was* about. Example: FERC Order 1920 query → got claims about FERC Order 1000 because the one matched article was about Order 1000.
