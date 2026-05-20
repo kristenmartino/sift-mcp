@@ -4,7 +4,7 @@ Sift MCP server — exposes Sift's civic-literacy news reader to AI clients.
 Tools:
   search_articles  — vector search over the pre-built article index
   get_article      — full article + primer + linked entities
-  get_dossier      — politician / org / bill / outlet dossier with public-records citations
+  get_dossier      — politician / org / bill / outlet / judge dossier with public-records citations
   search_dossiers  — find a dossier by name
   compare_outlets  — cross-outlet claim comparison over Sift's article index
 
@@ -36,7 +36,7 @@ logger = logging.getLogger("sift-mcp")
 
 mcp = FastMCP("sift")
 
-EntityType = Literal["politician", "org", "bill", "outlet"]
+EntityType = Literal["politician", "org", "bill", "outlet", "judge"]
 
 
 # ─── Embedding helper ────────────────────────────────────────────────
@@ -260,8 +260,8 @@ async def search_articles(
 async def get_article(article_id: str) -> dict[str, Any]:
     """
     Fetch a full article: title, summary, why-it-matters, source link, and the
-    linked civic entities (politicians, organizations, bills, outlets) that
-    appear in the story.
+    linked civic entities (politicians, organizations, bills, outlets, judges)
+    that appear in the story.
 
     Use this after `search_articles` to drill into a specific story. Each
     item in `linked_entities` has an `entity_type` and `slug` you can pass
@@ -301,17 +301,21 @@ async def get_article(article_id: str) -> dict[str, Any]:
 @mcp.tool()
 async def get_dossier(entity_type: EntityType, slug: str) -> dict[str, Any]:
     """
-    Fetch a structured dossier on a politician, organization, bill, or news outlet.
-    Every field is sourced from public records — citations are in `external_links`
-    (OpenSecrets, GovTrack, ProPublica Nonprofit Explorer, FARA, FEC, Vote Smart,
-    Congress.gov, AllSides, MBFC). Sift surfaces these verbatim and never computes
-    its own ratings.
+    Fetch a structured dossier on a politician, organization, bill, news outlet,
+    or judge. Every field is sourced from public records — citations are in
+    `external_links` (OpenSecrets, GovTrack, ProPublica Nonprofit Explorer, FARA,
+    FEC, Vote Smart, Congress.gov, AllSides, MBFC, OMB Historical Tables, FJC,
+    SupremeCourt.gov). Sift surfaces these verbatim and never computes its own
+    ratings.
 
     Slug conventions:
-      politician: bioguide_id (e.g., 'S001181' for Schumer)
-      org:        canonical slug (e.g., 'brookings-institution')
-      bill:       bill_id (e.g., 'hr-5678-119')
+      politician: bioguide_id (e.g., 'S000148' for Schumer; 'EXEC-TRUMP-DJ' for
+                  executive-branch entries; 'FOREIGN-MACRON-E' for foreign leaders)
+      org:        canonical slug (e.g., 'brookings-institution', or
+                  'environmental-protection-agency' for federal agencies)
+      bill:       bill_id (e.g., 'hr-5376-117' for the Inflation Reduction Act)
       outlet:     canonical slug (e.g., 'reuters')
+      judge:      canonical_id (e.g., 'SCOTUS-ROBERTS-J' for Chief Justice Roberts)
 
     Use `search_dossiers` first if you don't know the exact slug.
     """
@@ -349,6 +353,14 @@ async def get_dossier(entity_type: EntityType, slug: str) -> dict[str, Any]:
             FROM outlet_profiles
             WHERE slug = $1
         """,
+        "judge": """
+            SELECT canonical_id AS id, name, court, position,
+                   nominating_president, confirmation_year, senior_status_year,
+                   previous_positions, external_links, notes,
+                   refreshed_at, updated_at
+            FROM judge_profiles
+            WHERE canonical_id = $1
+        """,
     }
 
     sql = queries.get(entity_type)
@@ -373,12 +385,13 @@ async def search_dossiers(
     limit: int = 10,
 ) -> list[dict[str, Any]]:
     """
-    Find a politician, organization, bill, or outlet by name. Use this when an
-    article mentions someone or something (e.g., 'Schumer', 'Heritage Foundation',
-    'Inflation Reduction Act') and you need the canonical slug for `get_dossier`.
+    Find a politician, organization, bill, outlet, or judge by name. Use this
+    when an article mentions someone or something (e.g., 'Schumer', 'Heritage
+    Foundation', 'Inflation Reduction Act', 'Justice Roberts') and you need the
+    canonical slug for `get_dossier`.
 
     Args:
-      entity_type: 'politician' | 'org' | 'bill' | 'outlet'.
+      entity_type: 'politician' | 'org' | 'bill' | 'outlet' | 'judge'.
       query: free-text name (case-insensitive).
       limit: max results, 1–50 (default 10).
     """
@@ -411,6 +424,14 @@ async def search_dossiers(
         "outlet": """
             SELECT slug AS id, name, allsides_rating, mbfc_factual
             FROM outlet_profiles
+            WHERE LOWER(name) LIKE $1
+            ORDER BY name
+            LIMIT $2
+        """,
+        "judge": """
+            SELECT canonical_id AS id, name, court, position,
+                   confirmation_year, nominating_president
+            FROM judge_profiles
             WHERE LOWER(name) LIKE $1
             ORDER BY name
             LIMIT $2
