@@ -25,6 +25,9 @@ jobs:
       - name: Lint
         run: uv run ruff check .
 
+      # No `if: hashFiles(...)` guard here, deliberately. That condition made a
+      # missing tests/ directory SKIP the step and leave the job green — so this
+      # repo carried a passing CI badge over ~920 untested lines. A repo with no
+      # tests should fail this job, not quietly pass it.
       - name: Test
-        if: hashFiles('tests/**/*.py') != ''
         run: uv run pytest tests/ -v
