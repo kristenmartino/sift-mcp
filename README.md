@@ -2,7 +2,7 @@
 
 MCP server exposing **[Sift](https://siftnews.kristenmartino.ai)** — a news aggregator with civic footnotes — to any MCP-compatible AI client (Claude Desktop, Claude Code, etc.).
 
-Sift reads from ~50 outlets across the political spectrum, AI-summarizes today's stories across 10 categories, and on top of that links every politician, organization, bill, outlet, and judge in an article to a structured dossier sourced from public records (OpenSecrets, GovTrack, ProPublica Nonprofit Explorer, FARA, FEC, Vote Smart, AllSides, MBFC, OMB Historical Tables, Federal Judicial Center, SupremeCourt.gov).
+Sift reads from ~50 outlets across the political spectrum, AI-summarizes today's stories across 10 categories, and on top of that links every politician, organization, bill, and outlet in an article to a structured dossier sourced from public records (OpenSecrets, GovTrack, ProPublica Nonprofit Explorer, FARA, FEC, Vote Smart, AllSides, MBFC, OMB Historical Tables, Federal Judicial Center, SupremeCourt.gov).
 
 This MCP makes that dossier graph queryable from an AI client.
 
@@ -17,11 +17,13 @@ This MCP makes that dossier graph queryable from an AI client.
 |---|---|---|
 | `search_articles(query, category?, limit?)` | Vector search over the pre-built article index. Returns articles ranked by semantic relevance. | ~50 ms |
 | `get_article(article_id)` | Full article + *"what you should know first"* primer + linked entities. | ~50 ms |
-| `get_dossier(entity_type, slug)` | Politician / org / bill / outlet / judge dossier with public-records citations. | ~50 ms |
+| `get_dossier(entity_type, slug)` | Politician / org / bill / outlet dossier with public-records citations. | ~50 ms |
 | `search_dossiers(entity_type, query, limit?)` | Find a dossier by name. | ~50 ms |
 | `compare_outlets(topic, outlets?, article_limit?, web_fallback?)` | Hybrid cross-outlet claim comparison. Always reads Sift's index (sub-second vector search + Haiku claim extraction with `article_id` citations). When index coverage is sparse (top score < 0.42, < 3 outlets, or < 5 articles) — and `web_fallback != "never"` — also runs Claude `web_search` in parallel across mainstream outlets and merges claims tagged with `source: "index" \| "web"`. | 5–9 s (index-only) · 15–25 s (with web) |
 
-`entity_type` is one of `politician`, `org`, `bill`, `outlet`, `judge`.
+`entity_type` is one of `politician`, `org`, `bill`, `outlet`. Supreme Court
+Justices are politicians (`SCOTUS-ROBERTS-J`) — sift-api migration 016 moved
+them into `politician_profiles` under `id_source = 'scotus'`.
 
 All five tools read from the same Neon Postgres that powers the live product. `compare_outlets` additionally makes one Claude Haiku call for claim extraction — no separate workflow service to deploy.
 
@@ -108,7 +110,7 @@ Configure env vars via your shell profile or by editing `~/.claude.json` to add 
 ## Architecture
 
 - **One surface, one DB.** All five tools read from the same Neon Postgres that powers sift-api + the Next.js frontend. No separate workflow service, no separate cache, no separate DB.
-- **Tool-per-handler**: each tool is one async function with one or two SQL queries against the canonical tables (`articles`, `politician_profiles`, `org_profiles`, `bill_profiles`, `outlet_profiles`, `judge_profiles`).
+- **Tool-per-handler**: each tool is one async function with one or two SQL queries against the canonical tables (`articles`, `politician_profiles`, `org_profiles`, `bill_profiles`, `outlet_profiles`).
 - **`compare_outlets` is a hybrid two-path tool.** Index path = vector search + Claude Haiku claim extraction over articles Sift has already curated. Web path = Claude with the `web_search_20250305` tool, fans out across mainstream outlets for fresh coverage. Both paths run in parallel when the web path fires; claims are merged into a single array tagged with `source: "index" | "web"`. Web fires when index coverage falls below a sparsity threshold (`top_score < 0.42`, `< 3 outlets`, or `< 5 articles`) — or always/never if the caller overrides via the `web_fallback` arg.
 - **Stdio transport** for v0.1: subprocess of the MCP client; nothing to deploy.
 - **`asyncpg` connection pool**, lazy-initialized; safe under concurrent tool calls.
