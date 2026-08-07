@@ -192,6 +192,59 @@ def _row_to_dict(row: Any) -> dict[str, Any]:
     return {k: _coerce(v) for k, v in dict(row).items()}
 
 
+# Each claim-bearing org field, grouped with the columns that make it
+# checkable. Mirrors the triples in sift/lib/org.ts.
+_ORG_CITED_GROUPS: tuple[tuple[str, ...], ...] = (
+    ("annual_budget_usd", "annual_budget_fy", "annual_budget_source"),
+    ("self_description", "self_description_source", "self_description_checked"),
+    ("governance_structure", "governance_source"),
+)
+_ORG_SOURCE_FIELD = {
+    "annual_budget_usd": "annual_budget_source",
+    "self_description": "self_description_source",
+    "governance_structure": "governance_source",
+}
+
+
+def gate_org_claims(row: dict[str, Any]) -> dict[str, Any]:
+    """Null any org claim whose source is missing — this server's parser layer.
+
+    The web UI has `sift/lib/org.ts` between the database and the page, and it
+    drops a claim-bearing value unless the source backing it is present and is
+    an http(s) URL. An MCP client has no equivalent layer: whatever this tool
+    returns is what a model quotes, with the citation links gone.
+
+    That matters concretely rather than theoretically. **23 of 103 org rows
+    carry an `annual_budget_usd` with no fiscal year and no filing URL** — EPA
+    among them, at $36.97B. Returning one is the unsourced-figure failure
+    migration 013 existed to remove, reproduced on the one surface where
+    nothing downstream can catch it.
+
+    `annual_budget_fy` is required alongside the figure, not just the URL:
+    "total expenses, FY ending December 2024, per this filing" is checkable;
+    a bare number is not. That is 013's stated rule.
+
+    Withholding is the safe direction — the dossier still returns, minus a
+    claim it could not back. Same posture as the sitemap publish floor.
+    """
+    out = dict(row)
+    for group in _ORG_CITED_GROUPS:
+        primary = group[0]
+        if out.get(primary) is None:
+            continue
+        source = out.get(_ORG_SOURCE_FIELD[primary])
+        cited = isinstance(source, str) and source.strip().lower().startswith(
+            ("http://", "https://")
+        )
+        if cited and primary == "annual_budget_usd":
+            fy = out.get("annual_budget_fy")
+            cited = isinstance(fy, str) and bool(fy.strip())
+        if not cited:
+            for field in group:
+                out[field] = None
+    return out
+
+
 # ─── Tools ───────────────────────────────────────────────────────────
 
 
@@ -329,9 +382,21 @@ async def get_dossier(entity_type: EntityType, slug: str) -> dict[str, Any]:
             FROM politician_profiles
             WHERE bioguide_id = $1
         """,
+        # No political_lean: migration 013 dropped it. It was Sift-assigned and
+        # uncited, which D37 forbids. Its replacements are self_description
+        # (the org's own words) and governance_structure (statutory facts for
+        # agencies) — each selected WITH the source and check-date columns that
+        # make it verifiable, on the same rule that pairs annual_budget_usd with
+        # its fiscal year and filing. A figure without its provenance is the
+        # defect 013 existed to remove; returning one here would reintroduce it
+        # on a surface the web UI's parser cannot police.
         "org": """
-            SELECT slug AS id, name, type, political_lean, founded_year,
-                   annual_budget_usd, major_funders, fara_registered, fara_countries,
+            SELECT slug AS id, name, type, founded_year,
+                   annual_budget_usd, annual_budget_source, annual_budget_fy,
+                   major_funders, fara_registered, fara_countries,
+                   self_description, self_description_source,
+                   self_description_checked,
+                   governance_structure, governance_source,
                    external_links, notes, updated_at
             FROM org_profiles
             WHERE slug = $1
@@ -366,6 +431,8 @@ async def get_dossier(entity_type: EntityType, slug: str) -> dict[str, Any]:
         return {"error": f"{entity_type} '{slug}' not found."}
 
     result = _row_to_dict(row)
+    if entity_type == "org":
+        result = gate_org_claims(result)
     result["entity_type"] = entity_type
     return result
 
@@ -402,7 +469,7 @@ async def search_dossiers(
             LIMIT $2
         """,
         "org": """
-            SELECT slug AS id, name, type, political_lean
+            SELECT slug AS id, name, type, founded_year
             FROM org_profiles
             WHERE LOWER(name) LIKE $1
             ORDER BY name

@@ -25,6 +25,7 @@ from sift_mcp.server import (
     _is_sparse,
     _row_to_dict,
     _select_web_outlets,
+    gate_org_claims,
 )
 
 
@@ -227,3 +228,74 @@ class TestRowToDict:
 
     def test_empty_row(self):
         assert _row_to_dict({}) == {}
+
+
+class TestGateOrgClaims:
+    """This server has no parser between the database and the model's mouth.
+
+    `sift/lib/org.ts` performs this gate for the web UI. An MCP client gets
+    whatever the tool returns, citation links stripped, so a claim that
+    reaches here unsourced is one a model will restate as fact.
+    """
+
+    BUDGET = {
+        "annual_budget_usd": 107734507,
+        "annual_budget_fy": "FY ending June 2025",
+        "annual_budget_source": "https://projects.propublica.org/nonprofits/organizations/1",
+    }
+
+    def test_fully_sourced_budget_survives(self):
+        assert gate_org_claims(dict(self.BUDGET)) == self.BUDGET
+
+    def test_budget_without_source_is_nulled(self):
+        out = gate_org_claims(dict(self.BUDGET, annual_budget_source=None))
+        assert out["annual_budget_usd"] is None
+        assert out["annual_budget_fy"] is None
+
+    def test_budget_without_fiscal_year_is_nulled(self):
+        """013's rule: a bare number is not checkable even with a filing URL."""
+        assert gate_org_claims(dict(self.BUDGET, annual_budget_fy=None))["annual_budget_usd"] is None
+
+    def test_non_url_source_does_not_count(self):
+        row = dict(self.BUDGET, annual_budget_source="see the 990")
+        assert gate_org_claims(row)["annual_budget_usd"] is None
+
+    def test_epa_shape_is_withheld(self):
+        """The live case: 23 of 103 prod rows look like this."""
+        row = {"annual_budget_usd": 36973000000, "annual_budget_fy": None,
+               "annual_budget_source": None}
+        assert gate_org_claims(row)["annual_budget_usd"] is None
+
+    def test_self_description_requires_its_source(self):
+        row = {"self_description": "We are nonpartisan.", "self_description_source": None,
+               "self_description_checked": "2026-07-01"}
+        out = gate_org_claims(row)
+        assert out["self_description"] is None
+        assert out["self_description_checked"] is None
+
+    def test_governance_requires_its_source(self):
+        row = {"governance_structure": "Five commissioners.", "governance_source": None}
+        assert gate_org_claims(row)["governance_structure"] is None
+
+    def test_groups_are_independent(self):
+        """A missing budget source must not strip a properly cited description."""
+        out = gate_org_claims(dict(self.BUDGET, annual_budget_source=None,
+                                   self_description="Our own words.",
+                                   self_description_source="https://example.org/about"))
+        assert out["annual_budget_usd"] is None
+        assert out["self_description"] == "Our own words."
+
+    def test_absent_claim_is_left_alone(self):
+        assert gate_org_claims({"name": "X", "type": "agency"}) == {"name": "X", "type": "agency"}
+
+    def test_identifying_fields_are_never_touched(self):
+        """Withholding a claim must not withhold the dossier."""
+        out = gate_org_claims({"id": "epa", "name": "EPA", "type": "agency",
+                               "annual_budget_usd": 1, "annual_budget_fy": None,
+                               "annual_budget_source": None})
+        assert out["id"] == "epa" and out["name"] == "EPA" and out["type"] == "agency"
+
+    def test_does_not_mutate_input(self):
+        row = dict(self.BUDGET, annual_budget_source=None)
+        gate_org_claims(row)
+        assert row["annual_budget_usd"] == 107734507
