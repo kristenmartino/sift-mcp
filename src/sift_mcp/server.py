@@ -412,7 +412,7 @@ async def search_dossiers(
             LIMIT $2
         """,
         "org": """
-            SELECT slug AS id, name, type
+            SELECT slug AS id, name, type, founded_year
             FROM org_profiles
             WHERE LOWER(name) LIKE $1
             ORDER BY name
