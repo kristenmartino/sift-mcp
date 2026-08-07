@@ -27,6 +27,14 @@ them into `politician_profiles` under `id_source = 'scotus'`.
 
 All five tools read from the same Neon Postgres that powers the live product. `compare_outlets` additionally makes one Claude Haiku call for claim extraction — no separate workflow service to deploy.
 
+### Org dossiers withhold what they cannot cite
+
+`get_dossier(entity_type="org")` returns a claim **only when the source backing it is present and is an http(s) URL** — `annual_budget_usd` with its `annual_budget_fy` and `annual_budget_source`, `self_description` with its source and check date, `governance_structure` with its source. When a source is missing, the whole group comes back `null`.
+
+This is not hypothetical: **23 of 110 org rows carry an `annual_budget_usd` with no fiscal year and no filing URL** — EPA among them, at $36.97B. The web UI has `sift/lib/org.ts` between the database and the page doing the same job; an MCP client has no equivalent layer, so whatever this tool returns is what a model quotes, with the citation links gone. A dossier that comes back missing a budget is working as designed. See `gate_org_claims`.
+
+`founded_year` is a separate case worth knowing about: it is `null` for **every** org row, and that is a decision rather than a gap. It was dropped rather than sourced to Wikipedia, and sift-api excludes it from JSON-LD for the same reason. Treat it as "Sift does not publish this", not "this organization has no founding date".
+
 ---
 
 ## Setup (local stdio)
