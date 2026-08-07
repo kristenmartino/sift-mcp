@@ -31,6 +31,8 @@ import voyageai
 from mcp.server.fastmcp import FastMCP
 
 from sift_mcp.db import get_pool
+from sift_mcp.usage import record as record_usage
+from sift_mcp.usage import within_budget
 
 logger = logging.getLogger("sift-mcp")
 
@@ -604,6 +606,7 @@ Return ONLY the JSON, no other text."""
         max_tokens=4096,
         messages=[{"role": "user", "content": prompt}],
     )
+    await record_usage("compare.extract_db_claims", response, COMPARE_MODEL)
     text = "".join(b.text for b in response.content if b.type == "text").strip()
     parsed = _extract_json_object(text)
     if not parsed:
@@ -701,6 +704,9 @@ Return ONLY the JSON, no other text or markdown."""
         }],
         messages=[{"role": "user", "content": prompt}],
     )
+    # The costly one: up to WEB_MAX_USES billable searches on top of the
+    # tokens. record() counts the server_tool_use blocks, which `usage` omits.
+    await record_usage("compare.extract_web_claims", response, COMPARE_MODEL)
 
     text = "".join(b.text for b in response.content if b.type == "text").strip()
     parsed = _extract_json_object(text)
@@ -826,8 +832,30 @@ async def compare_outlets(
         or (web_fallback == "auto" and is_sparse)
     )
 
+    # The web path is the expensive one — up to WEB_MAX_USES billable searches
+    # at $0.010 each on top of a 4096-token completion, so ~$0.16 in a single
+    # call. Skipping it costs breadth, not the answer: the DB claims are
+    # already gathered and still returned, which is exactly web_fallback="never".
+    if fire_web and not await within_budget():
+        fire_web = False
+        budget_skipped = True
+    else:
+        budget_skipped = False
+
     # If web won't fire AND index is completely empty, bail with a useful error.
     if not fire_web and article_count == 0:
+        if budget_skipped:
+            # Do not tell the caller to retry with 'always' — the ceiling
+            # would block that too, and they would just burn another round
+            # trip discovering it.
+            return {
+                "error": (
+                    f"No articles in Sift's index match '{topic}', and the web "
+                    f"fallback is unavailable: today's AI spend has reached the "
+                    f"daily ceiling. Retrying with web_fallback='always' will "
+                    f"not help until the ceiling resets or is raised."
+                ),
+            }
         return {
             "error": (
                 f"No articles in Sift's index match '{topic}' (top similarity "
@@ -893,7 +921,9 @@ async def compare_outlets(
         "web_outlets_found": (web_result.get("outlets_found", []) if web_result else []),
         "articles_compared": article_count,
         "top_relevance_score": round(top_score, 3),
-        "web_status": web_status,
+        "web_status": (
+            "skipped_over_budget" if budget_skipped else web_status
+        ),
         "claims": all_claims,
     }
 
