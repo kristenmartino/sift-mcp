@@ -382,12 +382,14 @@ async def get_dossier(entity_type: EntityType, slug: str) -> dict[str, Any]:
             FROM politician_profiles
             WHERE bioguide_id = $1
         """,
-        # `political_lean` used to sit in this list. It was a Sift-authored
-        # characterization of a real org, and it was dropped from the table
-        # rather than sourced. Its replacements are the sourced columns below
-        # (migrations 012/013): each claim ships with the URL it came from, so
-        # a caller can quote the org's own words and cite them, instead of
-        # relaying our label for it.
+        # No political_lean: migration 013 dropped it. It was Sift-assigned and
+        # uncited, which D37 forbids. Its replacements are self_description
+        # (the org's own words) and governance_structure (statutory facts for
+        # agencies) — each selected WITH the source and check-date columns that
+        # make it verifiable, on the same rule that pairs annual_budget_usd with
+        # its fiscal year and filing. A figure without its provenance is the
+        # defect 013 existed to remove; returning one here would reintroduce it
+        # on a surface the web UI's parser cannot police.
         "org": """
             SELECT slug AS id, name, type, founded_year,
                    annual_budget_usd, annual_budget_source, annual_budget_fy,
