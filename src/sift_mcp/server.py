@@ -329,9 +329,19 @@ async def get_dossier(entity_type: EntityType, slug: str) -> dict[str, Any]:
             FROM politician_profiles
             WHERE bioguide_id = $1
         """,
+        # `political_lean` used to sit in this list. It was a Sift-authored
+        # characterization of a real org, and it was dropped from the table
+        # rather than sourced. Its replacements are the sourced columns below
+        # (migrations 012/013): each claim ships with the URL it came from, so
+        # a caller can quote the org's own words and cite them, instead of
+        # relaying our label for it.
         "org": """
-            SELECT slug AS id, name, type, political_lean, founded_year,
-                   annual_budget_usd, major_funders, fara_registered, fara_countries,
+            SELECT slug AS id, name, type, founded_year,
+                   annual_budget_usd, annual_budget_source, annual_budget_fy,
+                   major_funders, fara_registered, fara_countries,
+                   self_description, self_description_source,
+                   self_description_checked,
+                   governance_structure, governance_source,
                    external_links, notes, updated_at
             FROM org_profiles
             WHERE slug = $1
@@ -402,7 +412,7 @@ async def search_dossiers(
             LIMIT $2
         """,
         "org": """
-            SELECT slug AS id, name, type, political_lean
+            SELECT slug AS id, name, type
             FROM org_profiles
             WHERE LOWER(name) LIKE $1
             ORDER BY name
