@@ -314,9 +314,10 @@ async def search_articles(
 @mcp.tool()
 async def get_article(article_id: str) -> dict[str, Any]:
     """
-    Fetch a full article: title, summary, why-it-matters, source link, and the
-    linked civic entities (politicians, organizations, bills, outlets)
-    that appear in the story.
+    Fetch a full article: title, summary, why-it-matters, the "what you
+    should know first" primer (context_primer: background + key-term
+    definitions, or null), source link, and the linked civic entities
+    (politicians, organizations, bills, outlets) that appear in the story.
 
     Use this after `search_articles` to drill into a specific story. Each
     item in `linked_entities` has an `entity_type` and `slug` you can pass
@@ -328,7 +329,8 @@ async def get_article(article_id: str) -> dict[str, Any]:
     pool = await get_pool()
     sql = """
       SELECT id, title, summary, source_url, source_name, category,
-             published_date, why_it_matters, importance_score, entities
+             published_date, why_it_matters, importance_score, entities,
+             context_primer
       FROM articles
       WHERE id = $1
     """
@@ -349,6 +351,12 @@ async def get_article(article_id: str) -> dict[str, Any]:
         "published_date": _coerce(row["published_date"]),
         "why_it_matters": row["why_it_matters"],
         "importance_score": row["importance_score"],
+        # The "what you should know first" primer — {background, terms} or
+        # null. The README's tool table always advertised it; the SELECT
+        # just never fetched it, so the civic-literacy differentiator was
+        # missing from the agent surface. Fixed in place despite the repo
+        # pause; noted on the sift-api#62 merge checklist so it carries over.
+        "context_primer": _coerce(row["context_primer"]),
         "linked_entities": entities,
     }
 
