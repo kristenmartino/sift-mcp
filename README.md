@@ -1,12 +1,12 @@
 # sift-mcp
 
-MCP server exposing **[Sift](https://siftnews.kristenmartino.ai)** — a news aggregator with civic footnotes — to any MCP-compatible AI client (Claude Desktop, Claude Code, etc.).
+MCP server exposing **[Sift](https://siftnews.io)** — a news aggregator with civic footnotes — to any MCP-compatible AI client (Claude Desktop, Claude Code, etc.).
 
-Sift reads from ~50 outlets across the political spectrum, AI-summarizes today's stories across 10 categories, and on top of that links every politician, organization, bill, and outlet in an article to a structured dossier sourced from public records (OpenSecrets, GovTrack, ProPublica Nonprofit Explorer, FARA, FEC, Vote Smart, AllSides, MBFC, OMB Historical Tables, Federal Judicial Center, SupremeCourt.gov).
+Sift reads from 72 curated outlets across the political spectrum, AI-summarizes today's stories across 10 categories, and on top of that links every politician, organization, bill, and outlet in an article to a structured dossier sourced from public records (OpenSecrets, GovTrack, ProPublica Nonprofit Explorer, FARA, FEC, Vote Smart, AllSides, MBFC, OMB Historical Tables, Federal Judicial Center, SupremeCourt.gov).
 
 This MCP makes that dossier graph queryable from an AI client.
 
-- **Live product:** [siftnews.kristenmartino.ai](https://siftnews.kristenmartino.ai)
+- **Live product:** [siftnews.io](https://siftnews.io)
 - **Case study:** [kristenmartino.ai/work/sift](https://kristenmartino.ai/work/sift)
 
 ---
@@ -127,7 +127,7 @@ Configure env vars via your shell profile or by editing `~/.claude.json` to add 
 
 - **v0**: stdio + 4 read-only Postgres tools.
 - **v0.1 (current)**: `compare_outlets(topic, outlets?, article_limit?, web_fallback?)` — hybrid index + web_search comparison. Index always primary; web auto-fires when index is sparse. Unified claims output with provenance tags.
-- **v0.5**: HTTP/SSE transport, Bearer token auth, per-token + global Anthropic cost caps, Railway deploy at `mcp.siftnews.kristenmartino.ai`. Issue read-only `demo` tokens publicly and `reviewer` tokens to specific contacts.
+- **v0.5**: HTTP/SSE transport, Bearer token auth, per-token + global Anthropic cost caps, Railway deploy at `mcp.siftnews.io`. Issue read-only `demo` tokens publicly and `reviewer` tokens to specific contacts.
 
 ## Why this exists
 
