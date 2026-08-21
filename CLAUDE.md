@@ -31,7 +31,7 @@ Don't open PRs that change behavior without touching the doc that explains the b
 
 ## Production stance
 
-**Pending.** Currently portfolio-grade — narrative clarity over operational rigor. Revisit when one of the v0.5 triggers in STATUS.md fires (Harish hands the URL to anyone, non-Kristen user signs up, $20/mo Anthropic spend, mobile app project starts).
+**Pending.** Currently portfolio-grade — narrative clarity over operational rigor. Revisit when one of the v0.5 triggers in STATUS.md fires (an outside stakeholder needs a shareable URL, a non-Kristen user signs up, $20/mo Anthropic spend, or an external agent / framework integration request). The mobile-app trigger is void — Android v1 is REST-only per `sift-api/docs/MOBILE_PROTOCOL_DECISION.md`.
 
 ## Where to file new work (decision tree)
 

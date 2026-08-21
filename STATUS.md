@@ -13,7 +13,7 @@
 
 With multiple internal LLM clients, Pattern Y (unified MCP — see `MERGE_MCP_INTO_API.md`) becomes the more attractive shape: one tool registry, multiple agent loops, one external MCP transport, all in sift-api.
 
-Just shipped **v0.1** — hybrid index + web_search comparison tool (`compare_outlets`) with a 26-outlet pool, smart selection (excludes outlets already in DB to avoid redundancy), and three fallback modes (`auto` / `always` / `never`). Index path runs in ~5–9s; with web fallback, ~10–15s. The Loom demo for Harish Desai (RealPage SVP) follow-up is still the unblock for any further work — `compare_outlets` is the centerpiece for bullet 3 ("MCP connecting AI to a real system / workflow / dataset") in his hiring ask.
+Just shipped **v0.1** — hybrid index + web_search comparison tool (`compare_outlets`) with a 26-outlet pool, smart selection (excludes outlets already in DB to avoid redundancy), and three fallback modes (`auto` / `always` / `never`). Index path runs in ~5–9s; with web fallback, ~10–15s. **Nothing external gates this repo anymore** — the RealPage / Harish Desai follow-up that originally motivated a Loom demo is closed as of 2026-08-21. Recording a `compare_outlets` demo may still be worth doing as a portfolio asset, but it is no longer a blocker for any engineering work here.
 
 ## Open strategic questions
 
@@ -22,7 +22,7 @@ Two live unknowns (one resolved 2026-05-20 — archived in [`docs/STATUS_ARCHIVE
 ### 1. When does sift-mcp need to expand beyond stdio?
 
 Original trigger: mobile-app project starting + need for hosted MCP. **That trigger is no longer valid** — per `sift-api/docs/MOBILE_PROTOCOL_DECISION.md`, the active Android v1 plan is REST-only and does not use MCP (even for Ask Sift + Refined Compare — those run server-side with MCP as internal plumbing). Remaining triggers worth watching:
-- Harish (or any RealPage stakeholder) asks for a working URL they can hand to others
+- An outside stakeholder asks for a working URL they can hand to others
 - A non-Kristen user signs up for access
 - Anthropic monthly bill from this tool crosses $20 (today it's <$1)
 - External agent / framework integration request (Claude.ai custom tool, Cursor, Cline, etc.)
