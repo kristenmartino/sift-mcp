@@ -7,11 +7,15 @@ Context to load before editing anything in `sift-mcp`. Keep this file **short**;
 Run these first, in order. Skip none.
 
 ```bash
-cat STATUS.md            # active focus, open question, next 3, recent decisions
-gh pr list               # what's open, what's mid-flight
-gh issue list            # what's committed but not started
-cat BACKLOG.md           # deferred work + bugs/quirks to revisit
+head -c 4000 STATUS.md   # active focus, open questions, recent decisions — no current state beyond this
+gh issue list             # the engineering queue — Next 3 lives here, not in STATUS.md
+gh pr list                 # what's open, what's mid-flight
+cat BACKLOG.md            # deferred work + bugs/quirks to revisit
 ```
+
+STATUS.md holds no current state of its own past `Active focus` and `Open strategic questions` — reading the
+head is enough; you don't need the full file (or its archive) for a normal session. The engineering queue and
+what's blocked both live in GitHub now (`gh issue list`), not in hand-maintained STATUS.md sections.
 
 The 30 seconds this takes saves hours of "wait, I thought we already decided…" later in the session.
 
@@ -19,7 +23,7 @@ The 30 seconds this takes saves hours of "wait, I thought we already decided…"
 
 Before opening a PR, ask three questions:
 
-1. **Did this change shift the active focus, the next 3, or the open strategic question?** → update `STATUS.md` in the PR.
+1. **Did this change shift the active focus or the open strategic question?** → update `STATUS.md` in the PR. (The engineering queue itself — what was "Next 3" — lives in GitHub issues; close/open/reprioritize there instead.)
 2. **Did this add a deferred item, a v0.5+ idea, or surface a quirk worth tracking?** → update `BACKLOG.md` in the PR.
 3. **Did this change the public tool surface (new tool, removed tool, changed args/return shape) or setup steps?** → update `README.md` in the PR.
 
@@ -36,15 +40,29 @@ When you discover something during a session that's worth tracking, use this to 
 | What you found | Where it goes |
 |---|---|
 | **Bug that's blocking current work** | Fix it in the active branch. Don't file. |
-| **Concrete feature you're committing to in the next ~2 weeks** | GitHub issue with `tier-v0.5` / `tier-v1.0` + `effort-*` labels. Add to STATUS.md "Next 3" if it bumps something. |
+| **Concrete feature you're committing to in the next ~2 weeks** | GitHub issue with `tier-v0.5` / `tier-v1.0` + `effort-*` labels. That issue *is* the "Next 3" now — no separate STATUS.md list to update. |
 | **Concrete feature you want eventually, no commitment** | BACKLOG.md under "Stretch / nice-to-have." Promote to issue later when you commit. |
 | **Quirk or minor bug that's not urgent** | BACKLOG.md under "Bugs / quirks to revisit." |
-| **Critical bug found but not fixed in this session** | GitHub issue with `bug` label *and* note in BACKLOG.md. Mention in STATUS.md "Blocked-on" if it blocks Next 3. |
+| **Critical bug found but not fixed in this session** | GitHub issue with `bug` label *and* note in BACKLOG.md. (No `blocked` label exists in this repo yet — add one, and the note, once it does. Until then a plain `gh issue list --state open` is the blocked-work view.) |
 | **Strategic question or open architectural decision** | STATUS.md "Open strategic questions" — never a GitHub issue. Questions get answered through usage/conversation, not engineering work. |
-| **Architectural decision you've now made** | STATUS.md "Recent decisions." Trim the oldest one if the section grows past ~6 entries. |
+| **Architectural decision you've now made** | STATUS.md "Recent decisions (last 7 days)." See "Recent decisions window + archive" below — this replaces the old count-based trim rule. |
 | **Out-of-scope idea that surfaced during work** | If it's tied to a specific file, use the spawned-task chip in your editor. Otherwise BACKLOG.md "Stretch." |
 
 **The rule:** if it has a date or a committed scope, file an issue. If it's a half-formed thought, BACKLOG.md is fine — issues you'll never close are noise.
+
+## Recent decisions window + archive
+
+**This supersedes the prior rule** ("trim the oldest entry once the section grows past ~6 entries"). STATUS.md's
+"Recent decisions" section is now date-windowed instead of count-windowed: it holds only entries from the last 7
+days. When you add a new decision, also check the oldest entries already there — anything dated before the
+7-day cutoff moves to [`docs/STATUS_ARCHIVE.md`](docs/STATUS_ARCHIVE.md), newest-first, verbatim, and is never
+edited again once archived. If "Recent decisions" is empty because nothing landed in the window, say so explicitly
+("Nothing in the last 7 days.") rather than leaving the section blank — a section with no content and no
+explanation reads as broken, not as good news.
+
+This is the same convention now applied across `sift`, `sift-api`, and this repo, for consistency — not because
+count-based trimming had visibly failed here yet (it hadn't; this repo's STATUS.md is small). Applying it
+uniformly means one mental model across all four repos instead of a different pruning rule per repo.
 
 ## Where things live
 

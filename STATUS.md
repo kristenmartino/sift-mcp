@@ -17,7 +17,7 @@ Just shipped **v0.1** — hybrid index + web_search comparison tool (`compare_ou
 
 ## Open strategic questions
 
-Two live unknowns (one resolved 2026-05-20 — moved to Recent decisions). None block current work; all shape decisions in the next month.
+Two live unknowns (one resolved 2026-05-20 — archived in [`docs/STATUS_ARCHIVE.md`](docs/STATUS_ARCHIVE.md)). None block current work; all shape decisions in the next month.
 
 ### 1. When does sift-mcp need to expand beyond stdio?
 
@@ -45,36 +45,44 @@ Arguments for keeping inside Sift:
 
 **What would resolve this:** First two reviewer-token users from outside the news/media space (a researcher, a hedge fund, a startup) signals the data-platform angle has demand independent of the reader product. Currently no demand signal.
 
-## Next 3
+## Next 3 — moved to GitHub
 
-Issues live in GitHub; this is the human-readable summary. Bullet 1 unchanged from prior STATUS; bullets 2 + 3 are now absorbed into the merge plan.
+**This section is gone deliberately — preventively, not reactively.** Nothing in this repo's own history shows
+a Next-3 entry going stale (the Loom-follow-up bullet that carried over unchanged from the prior STATUS was
+still accurate, just still pending). This repo is small enough that the old convention wasn't broken here yet.
+It's being retired anyway, for consistency with `sift` and `sift-api`, where the hand-maintained version did
+rot — before this file grows to the point where it would too.
 
-1. **Record + send Harish Loom** *(immediate, no issue — not engineering work)*. ~4-min walkthrough: reader surface → MCP tools via Claude Desktop → live `compare_outlets` demo → what I'd build at RealPage.
-2. **Track [`sift-api#62`](https://github.com/kristenmartino/sift-api/issues/62) — merge into sift-api.** Phase 1 absorbs **[#2 Cost caps](https://github.com/kristenmartino/sift-mcp/issues/2)** (per-call + per-user-day + global daily ceiling, applied uniformly across MCP and REST transports, and to both internal agent loops Ask Sift + Refined Compare). Phase 2 absorbs (or supersedes) **[#4 HTTP/SSE transport + Bearer auth](https://github.com/kristenmartino/sift-mcp/issues/4)** as a route mount on sift-api, not a separate Railway service. After cleanup, this repo gets archived with a redirect README.
-3. **Standalone follow-ups that survive the merge:** [#3 Cache web_search results](https://github.com/kristenmartino/sift-mcp/issues/3), [#6 Per-outlet hit-rate tracking](https://github.com/kristenmartino/sift-mcp/issues/6), [#7 Longform outlet starvation](https://github.com/kristenmartino/sift-mcp/issues/7), [#8 Single-article comparison substitutes the topic](https://github.com/kristenmartino/sift-mcp/issues/8) — all migrate into sift-api during merge cleanup.
+    gh issue list --state open            # the engineering queue
+    gh pr list --state open               # in flight
 
-## Blocked-on
+Priority lives in issue labels and the [project board](https://github.com/users/kristenmartino/projects/3).
+The Loom-recording task has no issue (it isn't engineering work) — it's tracked in Active focus above instead.
 
-Nothing engineering-blocked. Work on this repo is paused pending the merge into sift-api; further changes here should be limited to bugfixes that need to ship before merge cleanup.
+## Blocked-on — moved to GitHub
 
-## Recent decisions
+**Also gone deliberately, same reasoning.**
 
-- **2026-08-10** — **`get_article` now returns `context_primer`** (fixed in place despite the pause). The README's tool table always advertised "full article + 'what you should know first' primer + linked entities", but the SELECT never fetched the column — the civic-literacy differentiator was silently missing from the agent surface, on the repo whose whole job is being the demo. Two-line fix (SELECT + returned dict). Carry-over note for the [#62 merge](https://github.com/kristenmartino/sift-api/issues/62): the merged `get_article` handler must include `context_primer` from day one.
+    gh issue list --state open
 
-- **2026-08-05** — **`judge` removed as an entity type; Justices are politicians.** Reverses the 2026-05-20 entry below. The upstream `judge_profiles` table it was built against turned out to exist **in production and in no repo** — it came from `sift-api` branch `state-mgmt-setup` (commit `9f44ba2`), which never merged, but whose seeders were run against prod by hand. `sift-api` migration 016 moves the nine Justices into `politician_profiles` under `id_source = 'scotus'` and drops the table, following migration 015, which had already reserved that value and already spelled out why a new entity type is not worth its cross-repo cost.
+(No `blocked` label exists in this repo yet — add `--label blocked` to the command above once one does.)
 
-  **This repo was the only wired consumer, and what it served was the problem.** `sift/lib/entityLinks.ts` drops unknown types, so the 87 judge `entity_links` never rendered on the web — but `get_dossier(entity_type="judge")` returned each row's `notes`, which held uncited characterizations of living people ("Confirmed 50-48 after contested hearings", "Authored the Dobbs majority opinion (2022)") sourced to Wikipedia. `sift/docs/OPERATING_CONTEXT.md` §5 forbids exactly that. Sourced replacements — office title from 28 U.S.C. § 1, confirmation date/tally/roll-call from senate.gov — now live on the politician rows, reachable as `get_dossier("politician", "SCOTUS-ROBERTS-J")`.
+### What this file is for
 
-  Tool surface change: `EntityType` drops `judge`; `get_dossier` and `search_dossiers` lose their `judge` branch. README updated.
+STATUS.md holds no current state of its own. Current state lives in GitHub issues/PRs, and in Active focus above
+(bounded, current, rewritten not appended). What has no home in GitHub is the cross-issue record — we measured X,
+it refuted Y, here is why we did not do Z. Architecture-level decisions promote further into
+[`sift/docs/DECISIONS.md`](https://github.com/kristenmartino/sift/blob/main/docs/DECISIONS.md) in the sibling repo,
+which is the cross-repo canonical decision log. An entry below describes what was true on its date and is never
+edited to stay current.
 
-- **2026-05-20** — **Merge `sift-mcp` into `sift-api` as one service with two transports.** Resolves the long-standing "open strategic question" on this repo's shape. Architecture spec in `sift-api/docs/MERGE_MCP_INTO_API.md`. Tracked as `sift-api` [#62](https://github.com/kristenmartino/sift-api/issues/62) with 4 phases. Drivers: existing duplication between `sift-api` `/analyze/compare` and this repo's `compare_outlets`; mobile is REST-only so no hosted-MCP demand from the active Android plan; Ask Sift agent loop + Refined Compare agent loop (sift-api [#63](https://github.com/kristenmartino/sift-api/issues/63)) need shared handlers.
-- **2026-05-20** — **Tool surface gains multiple internal LLM consumers.** Ask Sift + Refined Compare are sibling specialized agents inside sift-api; they share this repo's 5 handlers (post-merge). Pattern Y (unified MCP) becomes the cleaner architectural choice over Pattern X with multiple internal LLM clients consuming the same registry. See `sift-api/docs/ASK_SIFT_PLAN.md` and `sift-api/docs/REFINED_COMPARE_PLAN.md`.
-- **2026-05-20** — **Mobile app is REST-only, not MCP** — even agentic features (Ask Sift, Refined Compare) use REST/SSE from the app's perspective. The agent loops run server-side; MCP is internal plumbing. Removes the original "mobile app starts" trigger for v0.5 urgency. Stdio posture stays current for v0.1 until a different demand signal appears.
-- ~~**2026-05-20** — **Added `judge` as a fifth entity type to `get_dossier` / `search_dossiers`.**~~ **Reversed 2026-08-05, see above.** Upstream sift-api Phase 3.J added a `judge_profiles` table (9 SCOTUS justices) separate from `politician_profiles` because the metadata shape diverges (court, nominating president, confirmation year vs party/state/chamber). MCP now exposes judges with `canonical_id` slugs like `SCOTUS-ROBERTS-J`. Same change closes the upstream linker's org/judge-blindness bug (post-backfill: 1,048 org links + 87 judge links across last 7 days, up from 0/0). — *The "upstream" it depended on was an unmerged branch; the org-linking half was later solved independently on `main` by sift-api #129's curated aliases, and the judge half never reached `main` at all.*
-- **Hybrid index + web_search architecture for `compare_outlets`.** Considered three routing options (proxy sift-api / direct web_search in MCP / new sift-api endpoint). Chose direct in MCP because the alternative routes either hardcoded 3 sources (sift-api) or required cross-repo refactor scope creep (new endpoint). Smart conditional fallback (`auto` mode) avoids paying for web when DB has good coverage.
-- **26-outlet pool with smart DB-exclusion selection.** Originally 4 hardcoded defaults; expanded to 26 (wires, broadsheets, political, financial, broadcast, longform/investigative) after validation showed the small pool produced poor fallback diversity. Selection per call excludes outlets already in the index result so web genuinely supplements rather than duplicates.
-- **`load_dotenv(override=True)`.** `.env` always wins over shell env. Predictable for solo development; documented in BACKLOG as a sharp edge to revisit once CI / multi-env deployment matters.
-- **Unified `claims` array tagged with `source: "index" | "web"`.** Considered separate sections; chose unified for one consistent shape that AI clients can filter on. Provenance is preserved without forcing two output schemas on every consumer.
+## Recent decisions (last 7 days)
+
+**Entries before 2026-08-13 are archived** in [`docs/STATUS_ARCHIVE.md`](docs/STATUS_ARCHIVE.md). This section
+held 10 entries going back to 2026-05-20 (plus a handful of undated architecture-decision bullets from the same
+v0.1 build period, archived alongside them) — all now archived.
+
+Nothing in the last 7 days.
 
 ## Where things live
 
@@ -88,7 +96,7 @@ Nothing engineering-blocked. Work on this repo is paused pending the merge into 
 
 ### Planning + state
 
-- **STATUS.md** (this file) — top-of-mind: active focus, open questions, **Next 3** committed work, blockers, recent decisions
+- **STATUS.md** (this file) — top-of-mind: active focus, open questions, recent decisions (last 7 days). Next 3 and Blocked-on live in GitHub issues/PRs now, not here.
 - **BACKLOG.md** — everything deferred, in prose: v0.5 items, stretch items, bugs/quirks to revisit. Items here can be promoted to GitHub issues when work is committed.
 - **GitHub issues** — formally tracked work. See [`gh issue list`](https://github.com/kristenmartino/sift-mcp/issues). Note: most v0.5 issues are now rolled into / superseded by `sift-api#62`. The 5 tools also feed `sift-api#63` (Ask Sift + Refined Compare) as the internal agent loops' shared tool surface.
 - **GitHub Project** ([Sift](https://github.com/users/kristenmartino/projects/3)) — board view spanning the 3 Sift repos (sift, sift-api, sift-mcp). Other product families (tenancy, valuate, regrag, portfolio-v2) get their own Projects as the template is replicated.
