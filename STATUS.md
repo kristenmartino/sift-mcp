@@ -13,7 +13,7 @@
 
 With multiple internal LLM clients, Pattern Y (unified MCP — see `MERGE_MCP_INTO_API.md`) becomes the more attractive shape: one tool registry, multiple agent loops, one external MCP transport, all in sift-api.
 
-Just shipped **v0.1** — hybrid index + web_search comparison tool (`compare_outlets`) with a 26-outlet pool, smart selection (excludes outlets already in DB to avoid redundancy), and three fallback modes (`auto` / `always` / `never`). Index path runs in ~5–9s; with web fallback, ~10–15s. **Nothing external gates this repo anymore** — the RealPage / Harish Desai follow-up that originally motivated a Loom demo is closed as of 2026-08-21. Recording a `compare_outlets` demo may still be worth doing as a portfolio asset, but it is no longer a blocker for any engineering work here.
+Just shipped **v0.1** — hybrid index + web_search comparison tool (`compare_outlets`) with a 26-outlet pool, smart selection (excludes outlets already in DB to avoid redundancy), and three fallback modes (`auto` / `always` / `never`). Measured 2026-08-22 (n=4 per mode, warm, first call discarded): index path 4–11s (median ~5s), web fallback 8–12s (median ~10.5s) — the web path adds ~5s over index-only, not the 15–25s the docs previously claimed. Sub-second when the index has no matches at all for the topic. **Nothing external gates this repo anymore** — the RealPage / Harish Desai follow-up that originally motivated a Loom demo is closed as of 2026-08-21. Recording a `compare_outlets` demo may still be worth doing as a portfolio asset, but it is no longer a blocker for any engineering work here.
 
 ## Open strategic questions
 

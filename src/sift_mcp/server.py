@@ -756,10 +756,12 @@ async def compare_outlets(
     Two paths, one tool:
       - **Index path** (always): vector-search Sift's articles for the topic,
         group matching articles by outlet, extract claims with agreement labels
-        and `article_id` citations. ~5-9s.
+        and `article_id` citations. ~4-11s (median ~5s); sub-second when the
+        index has no matches for the topic.
       - **Web path** (conditional): Claude with the `web_search_20250305` tool,
         fans out across mainstream outlets to find fresh coverage, extracts
-        claims in the same shape. ~15-25s, capped at 25s upstream.
+        claims in the same shape. ~8-12s (median ~10.5s), hard-capped at
+        WEB_TIMEOUT_S (30s).
 
     Args:
       topic: free-text topic, 3–500 chars. Be specific — broad topics produce
