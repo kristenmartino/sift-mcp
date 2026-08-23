@@ -19,7 +19,7 @@ This MCP makes that dossier graph queryable from an AI client.
 | `get_article(article_id)` | Full article + *"what you should know first"* primer + linked entities. | ~50 ms |
 | `get_dossier(entity_type, slug)` | Politician / org / bill / outlet dossier with public-records citations. | ~50 ms |
 | `search_dossiers(entity_type, query, limit?)` | Find a dossier by name. | ~50 ms |
-| `compare_outlets(topic, outlets?, article_limit?, web_fallback?)` | Hybrid cross-outlet claim comparison. Always reads Sift's index (sub-second vector search + Haiku claim extraction with `article_id` citations). When index coverage is sparse (top score < 0.42, < 3 outlets, or < 5 articles) — and `web_fallback != "never"` — also runs Claude `web_search` in parallel across mainstream outlets and merges claims tagged with `source: "index" \| "web"`. | 5–9 s (index-only) · 15–25 s (with web) |
+| `compare_outlets(topic, outlets?, article_limit?, web_fallback?)` | Hybrid cross-outlet claim comparison. Always reads Sift's index (sub-second vector search + Haiku claim extraction with `article_id` citations). When index coverage is sparse (top score < 0.42, < 3 outlets, or < 5 articles) — and `web_fallback != "never"` — also runs Claude `web_search` in parallel across mainstream outlets and merges claims tagged with `source: "index" \| "web"`. | 4–11 s (index-only, median ~5 s) · 8–12 s (with web, median ~10.5 s) |
 
 `entity_type` is one of `politician`, `org`, `bill`, `outlet`. Supreme Court
 Justices are politicians (`SCOTUS-ROBERTS-J`) — sift-api migration 016 moved
