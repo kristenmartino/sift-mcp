@@ -2,7 +2,7 @@
 
 MCP server exposing **[Sift](https://siftnews.io)** — a news aggregator with civic footnotes — to any MCP-compatible AI client (Claude Desktop, Claude Code, etc.).
 
-Sift reads from 72 curated outlets across the political spectrum, AI-summarizes today's stories across 10 categories, and on top of that links every politician, organization, bill, and outlet in an article to a structured dossier sourced from public records (OpenSecrets, GovTrack, ProPublica Nonprofit Explorer, FARA, FEC, Vote Smart, AllSides, MBFC, OMB Historical Tables, Federal Judicial Center, SupremeCourt.gov).
+Sift summarizes news from a curated outlet registry and links recognized entities to available civic dossiers. Registry membership does not establish current ingestion coverage, and not every article entity has a dossier. Profiles include source-linked public records where available; AI-generated summaries and comparisons still require verification.
 
 This MCP makes that dossier graph queryable from an AI client.
 
@@ -13,17 +13,19 @@ This MCP makes that dossier graph queryable from an AI client.
 
 ## Tools
 
-| Tool | What it does | Latency |
+| Tool | What it does | Request path |
 |---|---|---|
-| `search_articles(query, category?, limit?)` | Vector search over the pre-built article index. Returns articles ranked by semantic relevance. | ~50 ms |
-| `get_article(article_id)` | Full article + *"what you should know first"* primer + linked entities. | ~50 ms |
-| `get_dossier(entity_type, slug)` | Politician / org / bill / outlet dossier with public-records citations. | ~50 ms |
-| `search_dossiers(entity_type, query, limit?)` | Find a dossier by name. | ~50 ms |
-| `compare_outlets(topic, outlets?, article_limit?, web_fallback?)` | Hybrid cross-outlet claim comparison. Always reads Sift's index (sub-second vector search + Haiku claim extraction with `article_id` citations). When index coverage is sparse (top score < 0.42, < 3 outlets, or < 5 articles) — and `web_fallback != "never"` — also runs Claude `web_search` in parallel across mainstream outlets and merges claims tagged with `source: "index" \| "web"`. | 4–11 s (index-only, median ~5 s) · 8–12 s (with web, median ~10.5 s) |
+| `search_articles(query, category?, limit?)` | Vector search over the pre-built article index. Returns articles ranked by semantic relevance. | Voyage query embedding + database search |
+| `get_article(article_id)` | Full article + *"what you should know first"* primer + linked entities. | Database read |
+| `get_dossier(entity_type, slug)` | Politician / org / bill / outlet dossier with public-records citations. | Database read |
+| `search_dossiers(entity_type, query, limit?)` | Find a dossier by name. | Database read |
+| `compare_outlets(topic, outlets?, article_limit?, web_fallback?)` | Hybrid cross-outlet claim comparison. Always reads Sift's index (vector search + Haiku claim extraction with `article_id` citations). When index coverage is sparse (top score < 0.42, < 3 outlets, or < 5 articles) — and `web_fallback != "never"` — also runs Claude `web_search` in parallel across mainstream outlets and merges claims tagged with `source: "index" \| "web"`. | Voyage + database + Claude; optional parallel web search |
 
 `entity_type` is one of `politician`, `org`, `bill`, `outlet`. Supreme Court
 Justices are politicians (`SCOTUS-ROBERTS-J`) — sift-api migration 016 moved
 them into `politician_profiles` under `id_source = 'scotus'`.
+
+The 2026-08-22 local warm comparison sample recorded in `STATUS.md` used four timed calls per mode: index-only 4–11 s (median ~5 s), web-enabled 8–12 s (median ~10.5 s). This small historical sample is not a current production benchmark or SLA. The other tools have no end-to-end latency measurement reported here.
 
 All five tools read from the same Neon Postgres that powers the live product. `compare_outlets` additionally makes one Claude Haiku call for claim extraction — no separate workflow service to deploy.
 
@@ -31,9 +33,9 @@ All five tools read from the same Neon Postgres that powers the live product. `c
 
 `get_dossier(entity_type="org")` returns a claim **only when the source backing it is present and is an http(s) URL** — `annual_budget_usd` with its `annual_budget_fy` and `annual_budget_source`, `self_description` with its source and check date, `governance_structure` with its source. When a source is missing, the whole group comes back `null`.
 
-This is not hypothetical: **23 of 110 org rows carry an `annual_budget_usd` with no fiscal year and no filing URL** — EPA among them, at $36.97B. The web UI has `sift/lib/org.ts` between the database and the page doing the same job; an MCP client has no equivalent layer, so whatever this tool returns is what a model quotes, with the citation links gone. A dossier that comes back missing a budget is working as designed. See `gate_org_claims`.
+This is a source-presence gate, not verification of the linked page or of whether it supports the claim. It does not fetch URLs or check entailment. A dossier with a withheld budget can be working as designed. See `gate_org_claims`; the frontend applies a similar gate in `sift/lib/org.ts`.
 
-`founded_year` is a separate case worth knowing about: it is `null` for **every** org row, and that is a decision rather than a gap. It was dropped rather than sourced to Wikipedia, and sift-api excludes it from JSON-LD for the same reason. Treat it as "Sift does not publish this", not "this organization has no founding date".
+A missing `founded_year`, or any other null field, means the tool has no publishable value in that response. It is not evidence that the real-world fact does not exist. Database contents can change; this README does not assert current row counts or universal field completeness.
 
 ---
 
@@ -54,7 +56,7 @@ Verify the server works with the MCP Inspector (browser UI for poking tools):
 ./scripts/inspect.sh
 ```
 
-This wraps `uv run mcp dev src/sift_mcp/server.py` and pre-sets `MCP_SERVER_REQUEST_TIMEOUT=120000` + `MCP_REQUEST_MAX_TOTAL_TIMEOUT=180000` so the `compare_outlets` tool (which runs live AI for ~15–60s) doesn't trip Inspector's 10s default. The four Postgres-backed tools work the same either way.
+This wraps `uv run mcp dev src/sift_mcp/server.py` and pre-sets `MCP_SERVER_REQUEST_TIMEOUT=120000` + `MCP_REQUEST_MAX_TOTAL_TIMEOUT=180000` to give `compare_outlets` headroom for live AI calls beyond Inspector's 10s default. These are timeout budgets, not measured response times. The four Postgres-backed tools work the same either way.
 
 Then call each tool with sample inputs to confirm DB access + Voyage embeddings are wired correctly before connecting to a real client.
 
